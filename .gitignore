@@ -1,0 +1,6 @@
+result*
+# local folders I use to play around with, e.g. `tar xf result -C out .` from a debpkgs tar
+out
+pkgs
+pkgs.tar
+debootstrap
