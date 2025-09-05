@@ -49,37 +49,48 @@ let
     # pkgs.lib.last (
     #   pkgs.lib.splitString "/" (builtins.readFile "${debHashes dist component flavor}/${name}/Filename")
     # );
-    "${name}_${builtins.replaceStrings [":"] ["%3a"] (builtins.readFile "${debHashes dist component flavor}/${name}/Version")}_${builtins.readFile "${debHashes dist component flavor}/${name}/Architecture"}.deb";
+    "${name}_${
+      builtins.replaceStrings [ ":" ] [ "%3a" ] (
+        builtins.readFile "${debHashes dist component flavor}/${name}/Version"
+      )
+    }_${builtins.readFile "${debHashes dist component flavor}/${name}/Architecture"}.deb";
   getDeb =
     dist: component: flavor: name:
     let
       hashes = debHashes dist component flavor;
     in
-    pkgs.runCommand "${dist}-${component}-${flavor}-${name}" { src = pkgs.fetchurl {
-      url = "${baseUrl}${builtins.readFile "${hashes}/${name}/Filename"}";
-      sha256 = builtins.readFile "${hashes}/${name}/SHA256";
-    }; } ''
-      mkdir $out
-      cp $src $out/package.deb
-      echo ${debFileName dist component flavor name} > $out/name.txt
-    '';
+    pkgs.runCommand "${dist}-${component}-${flavor}-${name}"
+      {
+        src = pkgs.fetchurl {
+          url = "${baseUrl}${builtins.readFile "${hashes}/${name}/Filename"}";
+          sha256 = builtins.readFile "${hashes}/${name}/SHA256";
+        };
+      }
+      ''
+        mkdir $out
+        cp $src $out/package.deb
+        echo ${debFileName dist component flavor name} > $out/name.txt
+      '';
   getDebs =
     dist: component: flavor: debs:
     # pkgs.linkFarmFromDrvs "debs" (pkgs.lib.map (getDeb dist component flavor) debs);
-    pkgs.runCommand "debs" { src = pkgs.linkFarmFromDrvs "debs" (pkgs.lib.map (getDeb dist component flavor) debs); } ''
-      mkdir $out
-      for dir in $src/*; do
-        echo $dir
-        cp -L $dir/package.deb $out/$(cat $dir/name.txt)
-      done
-    '';
+    pkgs.runCommand "debs"
+      { src = pkgs.linkFarmFromDrvs "debs" (pkgs.lib.map (getDeb dist component flavor) debs); }
+      ''
+        mkdir $out
+        for dir in $src/*; do
+          echo $dir
+          cp -L $dir/package.deb $out/$(cat $dir/name.txt)
+        done
+      '';
   baseFile = debs: pkgs.writeText "base" (pkgs.lib.concatStringsSep " " debs);
-  requiredFile = debs: pkgs.writeText "required" (pkgs.lib.concatStringsSep "\n" ([""] ++ debs));
+  requiredFile = debs: pkgs.writeText "required" (pkgs.lib.concatStringsSep "\n" ([ "" ] ++ debs));
   debpathsFile =
     dist: component: flavor: debs:
     pkgs.writeText "debpaths" (
       pkgs.lib.concatStringsSep "\n" (
-        (pkgs.lib.map (deb: "${deb} /var/cache/apt/archives/${debFileName dist component flavor deb}") debs) ++ [""]
+        (pkgs.lib.map (deb: "${deb} /var/cache/apt/archives/${debFileName dist component flavor deb}") debs)
+        ++ [ "" ]
       )
     );
   chrootTar =
