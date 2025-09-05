@@ -2,7 +2,7 @@
   pkgs ? import <nixpkgs> { },
 }:
 let
-  chrootlib = pkgs.callPackage ./chrootlib { };
+  chrootlib = pkgs.callPackage ./lib { };
 in
-chrootlib.buildChroot (chrootlib.chrootTar "trixie" "main" "binary-amd64" [ ])
+chrootlib.buildChroot (chrootlib.debootstrapTar "trixie" "main" "binary-amd64" [ ])
 # chrootlib.buildChroot []
