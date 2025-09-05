@@ -3,4 +3,4 @@
   pkgs,
   system,
 }:
-self.lib.${system}.buildChroot (self.lib.${system}.chrootTar "trixie" "main" "binary-amd64" [ ])
+self.lib.${system}.buildChroot (self.lib.${system}.debootstrapTar "trixie" "main" "binary-amd64" [ ])

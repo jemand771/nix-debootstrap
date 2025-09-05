@@ -93,14 +93,14 @@ let
         ++ [ "" ]
       )
     );
-  chrootTar =
+  debootstrapTar =
     dist: component: flavor: debs:
     let
       baseDebs = import ./packages-base.nix;
       requiredDebs = debs ++ import ./packages-required.nix;
       allDebs = baseDebs ++ requiredDebs;
     in
-    pkgs.runCommand "chroot.tar" { src = getDebs dist component flavor allDebs; } ''
+    pkgs.runCommand "debootstrap.tar" { src = getDebs dist component flavor allDebs; } ''
       mkdir -p out/{debootstrap,var/{lib/apt/lists,cache/apt}}
       cp -r $src out/var/cache/apt/archives
       cp ${
@@ -146,5 +146,5 @@ in
   debHashes = debHashes;
   getDeb = getDeb;
   getDebs = getDebs;
-  chrootTar = chrootTar;
+  debootstrapTar = debootstrapTar;
 }
