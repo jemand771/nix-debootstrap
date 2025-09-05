@@ -84,7 +84,7 @@ let
         done
       '';
   baseFile = debs: pkgs.writeText "base" (pkgs.lib.concatStringsSep " " debs);
-  requiredFile = debs: pkgs.writeText "required" (pkgs.lib.concatStringsSep "\n" ([ "" ] ++ debs));
+  requiredFile = debs: pkgs.writeText "required" (pkgs.lib.concatStringsSep "\n" debs);
   debpathsFile =
     dist: component: flavor: debs:
     pkgs.writeText "debpaths" (
@@ -93,57 +93,30 @@ let
         ++ [ "" ]
       )
     );
-  reapply =
-    f: val:
-    let
-      next = f val;
-    in
-    if next == val then val else reapply f next;
-  getRelationships =
-    info: deb: field:
-    builtins.filter
-      (d: (builtins.typeOf d == "string") && (d != "") && (builtins.match ".*[()].*" d) == null)
-      (
-        if builtins.pathExists "${info}/${deb}/${field}" then
-          # TODO this is pretty stupid, we pull in too many deps (maybe even conflicting ones) causing duplicate stuff
-          builtins.split "[,| ]" (builtins.readFile "${info}/${deb}/${field}")
-        else
-          [ ]
-      );
-  updateDepends = info: dp: [
-    (pkgs.lib.unique (
-      (builtins.elemAt dp 0)
-      ++ (builtins.filter (x: !builtins.elem x (builtins.elemAt dp 1)) (
-        builtins.concatMap (d: getRelationships info d "Depends") (builtins.elemAt dp 0)
-      ))
-    ))
-    (builtins.elemAt dp 1)
-  ];
-  updateProvides = info: dp: [
-    (builtins.elemAt dp 0)
-    (pkgs.lib.unique (
-      (builtins.elemAt dp 1)
-      ++ (builtins.concatMap (d: getRelationships info d "Provides") (builtins.elemAt dp 0))
-    ))
-  ];
   resolveDeps =
-    info: deps:
-    builtins.elemAt (reapply (dp: (updateDepends info (updateProvides info dp))) [
-      (
-        deps
-        ++ [
-          # list of packages we need but don't directly depend on (only on their `Provides` fields)
-          # might be overkill to always add them, for now this makes things work
-          "perl-base"
-        ]
+    list: deps:
+    pkgs.lib.splitString "\n" (
+      pkgs.lib.trim (
+        builtins.readFile "${pkgs.runCommand "deps"
+          {
+            ARCH_ALL_SUPPORTED = "0";
+            MIRRORS = "deb.debian.org_debian";
+            ARCH = "amd64";
+            SUITE = "trixie";
+            COMPONENTS = "main";
+            DLDEST = "apt_dest";
+            nativeBuildInputs = [ pkgs.perl ];
+          }
+          ''
+            export TARGET=$(pwd)
+            . ${pkgs.debootstrap}/share/debootstrap/functions
+            mkdir lists
+            cp ${list} lists/deb.debian.org_debian_dists_trixie_main_binary-amd64_Packages
+            resolve_deps ${pkgs.lib.concatStringsSep " " deps} > $out
+          ''
+        }"
       )
-      [
-        # list of naughty packages where we have the alternative but the |-split treats them as hard dependencies anyway.
-        # these should really be handled by some sort of recursive alternative resolver. for now, pretend they're already provideds
-        "debconf-2.0"
-      ]
-    ]) 0;
-  # resolveDeps = info: deps: pkgs.lib.unique (deps ++ builtins.concatMap (getRelationships info "Depends") deps);
+    );
   priorityDebs =
     priority: info:
     pkgs.lib.splitString "\n" (
@@ -162,9 +135,12 @@ let
   debootstrapTar =
     dist: component: flavor: debs:
     let
-      hashes = (debHashes dist component flavor);
-      baseDebs = resolveDeps hashes (debs ++ priorityDebs "important" hashes);
-      requiredDebs = resolveDeps hashes (debs ++ priorityDebs "required" hashes);
+      hashes = debHashes dist component flavor;
+      list = packageList dist component flavor;
+      requiredDebs = resolveDeps list (debs ++ priorityDebs "required" hashes);
+      baseDebs = pkgs.lib.subtractLists requiredDebs (
+        resolveDeps list (debs ++ priorityDebs "important" hashes)
+      );
       allDebs = baseDebs ++ requiredDebs;
     in
     pkgs.runCommand "debootstrap.tar" { src = getDebs dist component flavor allDebs; } ''
@@ -192,8 +168,8 @@ let
     pkgs.vmTools.runInLinuxVM (
       pkgs.runCommand "chroot.tar"
         {
-          nativeBuildInputs = [ debootstrapVerbose ];
-          # nativeBuildInputs = [ debootstrap ];
+          # nativeBuildInputs = [ debootstrapVerbose ];
+          nativeBuildInputs = [ debootstrap ];
           memSize = 1024 * 8;
         }
         ''
@@ -214,10 +190,4 @@ in
   getDeb = getDeb;
   getDebs = getDebs;
   debootstrapTar = debootstrapTar;
-
-  updateDepends = updateDepends;
-  updateProvides = updateProvides;
-  reapply = reapply;
-  resolveDeps = resolveDeps;
-  priorityDebs = priorityDebs;
 }
