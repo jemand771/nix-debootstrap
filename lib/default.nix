@@ -123,7 +123,7 @@ let
   buildChroot =
     debpkgs:
     pkgs.vmTools.runInLinuxVM (
-      pkgs.runCommand "chroot"
+      pkgs.runCommand "chroot.tar"
         {
           # nativeBuildInputs = [ debootstrapVerbose ];
           nativeBuildInputs = [ debootstrap ];
@@ -132,10 +132,10 @@ let
         ''
           debootstrap --unpack-tarball ${debpkgs} --no-check-sig trixie tmp
           rm tmp/dev/{null,zero,full,random,urandom,tty,console,ptmx}
-          cp -r tmp $out
-          cat <<EOF >> $out/root/.bashrc
+          cat <<EOF >> tmp/root/.bashrc
           export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
           EOF
+          tar cf $out -C tmp .
         ''
     );
 in
