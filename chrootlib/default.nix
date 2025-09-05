@@ -85,8 +85,8 @@ let
   chrootTar =
     dist: component: flavor: debs:
     let
-      baseDebs = import ./base.nix;
-      requiredDebs = debs ++ import ./required.nix;
+      baseDebs = import ./packages-base.nix;
+      requiredDebs = debs ++ import ./packages-required.nix;
       allDebs = baseDebs ++ requiredDebs;
     in
     pkgs.runCommand "chroot.tar" { src = getDebs dist component flavor allDebs; } ''
