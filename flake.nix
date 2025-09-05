@@ -19,6 +19,10 @@
       in
       {
         formatter = pkgs.nixfmt-tree;
+        checks = pkgs.lib.mapAttrs' (name: _: {
+          name = pkgs.lib.removeSuffix ".nix" name;
+          value = pkgs.callPackage "${self}/tests/${name}" { inherit self; };
+        }) (builtins.readDir ./tests);
       }
     );
 }
