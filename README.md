@@ -6,7 +6,16 @@ Generate debian chroots using nix. Currently uses IFD for convenience reasons (R
 Abuses snapshot.debian.org to grab a stable release file, (allegedly) stable package lists and (allegedly) stable .deb archives. How nice of them to include hashes for each file.
 
 Dependency resolution doesn't work, binary-amd64 is just straight up hardcoded, and the interface is questionable at best.
-BUT you _can_ get a very basic trixie chroot out of this by running `nix-build test.nix` and hop in using `sudo chroot result /bin/bash`, so that's something I guess.
+BUT you _can_ get a very basic trixie chroot out of this by running
+
+```sh
+nix-build test.nix
+mkdir out
+tar xf result -C out
+sudo chroot result /bin/bash
+```
+
+so that's something I guess.
 (Good luck doing anything with a readonly chroot)
 
 This is intended to be used with schroot's "readonly" mode where each session creates a copy/overlay of some golden image (which lives in the nix store in this case) some day.
