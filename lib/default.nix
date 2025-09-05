@@ -93,11 +93,78 @@ let
         ++ [ "" ]
       )
     );
+  reapply =
+    f: val:
+    let
+      next = f val;
+    in
+    if next == val then val else reapply f next;
+  getRelationships =
+    info: deb: field:
+    builtins.filter
+      (d: (builtins.typeOf d == "string") && (d != "") && (builtins.match ".*[()].*" d) == null)
+      (
+        if builtins.pathExists "${info}/${deb}/${field}" then
+          # TODO this is pretty stupid, we pull in too many deps (maybe even conflicting ones) causing duplicate stuff
+          builtins.split "[,| ]" (builtins.readFile "${info}/${deb}/${field}")
+        else
+          [ ]
+      );
+  updateDepends = info: dp: [
+    (pkgs.lib.unique (
+      (builtins.elemAt dp 0)
+      ++ (builtins.filter (x: !builtins.elem x (builtins.elemAt dp 1)) (
+        builtins.concatMap (d: getRelationships info d "Depends") (builtins.elemAt dp 0)
+      ))
+    ))
+    (builtins.elemAt dp 1)
+  ];
+  updateProvides = info: dp: [
+    (builtins.elemAt dp 0)
+    (pkgs.lib.unique (
+      (builtins.elemAt dp 1)
+      ++ (builtins.concatMap (d: getRelationships info d "Provides") (builtins.elemAt dp 0))
+    ))
+  ];
+  resolveDeps =
+    info: deps:
+    builtins.elemAt (reapply (dp: (updateDepends info (updateProvides info dp))) [
+      (
+        deps
+        ++ [
+          # list of packages we need but don't directly depend on (only on their `Provides` fields)
+          # might be overkill to always add them, for now this makes things work
+          "perl-base"
+        ]
+      )
+      [
+        # list of naughty packages where we have the alternative but the |-split treats them as hard dependencies anyway.
+        # these should really be handled by some sort of recursive alternative resolver. for now, pretend they're already provideds
+        "debconf-2.0"
+      ]
+    ]) 0;
+  # resolveDeps = info: deps: pkgs.lib.unique (deps ++ builtins.concatMap (getRelationships info "Depends") deps);
+  priorityDebs =
+    priority: info:
+    pkgs.lib.splitString "\n" (
+      pkgs.lib.trim (
+        builtins.readFile "${pkgs.runCommand "${priority}-packages"
+          {
+            src = info;
+            nativeBuildInputs = [ pkgs.python3 ];
+          }
+          ''
+            python3 ${./priority-filter.py} ${priority} $src $out
+          ''
+        }"
+      )
+    );
   debootstrapTar =
     dist: component: flavor: debs:
     let
-      baseDebs = import ./packages-base.nix;
-      requiredDebs = debs ++ import ./packages-required.nix;
+      hashes = (debHashes dist component flavor);
+      baseDebs = resolveDeps hashes (debs ++ priorityDebs "important" hashes);
+      requiredDebs = resolveDeps hashes (debs ++ priorityDebs "required" hashes);
       allDebs = baseDebs ++ requiredDebs;
     in
     pkgs.runCommand "debootstrap.tar" { src = getDebs dist component flavor allDebs; } ''
@@ -125,8 +192,8 @@ let
     pkgs.vmTools.runInLinuxVM (
       pkgs.runCommand "chroot.tar"
         {
-          # nativeBuildInputs = [ debootstrapVerbose ];
-          nativeBuildInputs = [ debootstrap ];
+          nativeBuildInputs = [ debootstrapVerbose ];
+          # nativeBuildInputs = [ debootstrap ];
           memSize = 1024 * 8;
         }
         ''
@@ -147,4 +214,10 @@ in
   getDeb = getDeb;
   getDebs = getDebs;
   debootstrapTar = debootstrapTar;
+
+  updateDepends = updateDepends;
+  updateProvides = updateProvides;
+  reapply = reapply;
+  resolveDeps = resolveDeps;
+  priorityDebs = priorityDebs;
 }

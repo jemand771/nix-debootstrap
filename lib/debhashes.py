@@ -19,7 +19,7 @@ for line in lines_condensed:
     key, val = line.split(": ", 1)
     if key == "Package":
         current_package = val
-    if key not in ("Filename", "SHA256", "Depends", "Suggests", "Version", "Architecture"):
+    if key not in ("Filename", "SHA256", "Depends", "Suggests", "Version", "Architecture", "Priority", "Provides"):
         continue
     file = out / current_package / key
     file.parent.mkdir(parents=True, exist_ok=True)
