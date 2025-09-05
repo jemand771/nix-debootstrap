@@ -18,6 +18,7 @@
         pkgs = nixpkgs.legacyPackages.${system};
       in
       {
+        lib = pkgs.callPackage ./lib { };
         formatter = pkgs.nixfmt-tree;
         checks = pkgs.lib.mapAttrs' (name: _: {
           name = pkgs.lib.removeSuffix ".nix" name;
