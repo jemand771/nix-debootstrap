@@ -10,16 +10,19 @@ pkgs.nixosTest {
     { config, pkgs, ... }:
     {
       imports = [ ../lib/schroot-profile.nix ];
-      programs.schroot.settings.mychroot = {
-        type = "file";
-        file = builtins.toString (
-          self.lib.${system}.buildChroot (
-            self.lib.${system}.debootstrapTar "trixie" "main" "binary-amd64" [ ]
-          )
-        );
-        source-clone = false;
-        aliases = "foo";
-        users = "root";
+      programs.schroot = {
+        enable = true;
+        settings.mychroot = {
+          type = "file";
+          file = builtins.toString (
+            self.lib.${system}.buildChroot (
+              self.lib.${system}.debootstrapTar "trixie" "main" "binary-amd64" [ ]
+            )
+          );
+          source-clone = false;
+          aliases = "foo";
+          users = "root";
+        };
       };
     };
 
