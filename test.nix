@@ -4,17 +4,17 @@
 }:
 let
   list = chrootlib.packageList "trixie" "main" "binary-amd64";
-  packages = chrootlib.packageJSON list;
+  packages = chrootlib.list2json list;
 in
-chrootlib.buildChroot list
+chrootlib.buildChroot
   (builtins.map (name: pkgs.lib.findFirst (p: p.Package == name) null packages) (
-    chrootlib.resolveDeps list (
+    chrootlib.resolveDeps packages (
       builtins.map (p: p.Package) (chrootlib.priorityDebs "required" packages)
     )
   ))
   (
     builtins.map (name: pkgs.lib.findFirst (p: p.Package == name) null packages) (
-      chrootlib.resolveDeps list (
+      chrootlib.resolveDeps packages (
         builtins.map (p: p.Package) (chrootlib.priorityDebs "important" packages)
       )
     )

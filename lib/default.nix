@@ -27,23 +27,54 @@ rec {
     let
       listPath = "${component}/${flavor}/Packages.xz";
     in
-    pkgs.runCommand "package-list-${dist}-${listPath}" {
-      src = pkgs.fetchurl {
-        url = "${baseUrl}dists/${dist}/${listPath}";
-        sha256 = builtins.readFile "${listHashesFromRelease dist}/${listPath}";
-      };
-    } "xz -d < $src > $out";
-  packageJSON =
+    builtins.readFile (
+      builtins.toString (
+        pkgs.runCommand "package-list-${dist}-${listPath}" {
+          src = pkgs.fetchurl {
+            url = "${baseUrl}dists/${dist}/${listPath}";
+            sha256 = builtins.readFile "${listHashesFromRelease dist}/${listPath}";
+          };
+        } "xz -d < $src > $out"
+      )
+    );
+  list2json =
     list:
-    pkgs.lib.importJSON (
-      pkgs.runCommand "packages.json"
-        {
-          src = list;
-          nativeBuildInputs = [ pkgs.python3 ];
-        }
-        ''
-          python3 ${./list2json.py} $src $out
-        ''
+    let
+      unwrappedLines = builtins.map (
+        line: if pkgs.lib.strings.hasPrefix " " line then line else "\n${line}"
+      ) (pkgs.lib.splitString "\n" list);
+      fullFile = pkgs.lib.removeSuffix "\n" (
+        pkgs.lib.removePrefix "\n" (pkgs.lib.concatStringsSep "" unwrappedLines)
+      );
+    in
+    builtins.map (
+      block:
+      builtins.listToAttrs (
+        builtins.map (
+          line:
+          let
+            split = pkgs.lib.splitString ": " line;
+          in
+          {
+            name = builtins.elemAt split 0;
+            value = pkgs.lib.concatStringsSep ": " (builtins.tail split);
+          }
+        ) (pkgs.lib.splitString "\n" block)
+      )
+    ) (pkgs.lib.splitString "\n\n" fullFile);
+  json2list =
+    json:
+    pkgs.lib.concatStringsSep "\n\n" (
+      builtins.map (
+        package:
+        pkgs.lib.concatStringsSep "\n" (
+          # debootstrap assumes `Package:` is the first line (lol)
+          # otherwise dependency resolution is off by one package entry with disasterous consequences
+          pkgs.lib.sortOn (line: if pkgs.lib.hasPrefix "Package:" line then 0 else 1) (
+            pkgs.lib.mapAttrsToList (name: value: "${name}: ${value}") package
+          )
+        )
+      ) json
     );
   debFileName =
     package:
@@ -87,7 +118,7 @@ rec {
       )
     );
   resolveDeps =
-    list: deps:
+    packages: deps:
     pkgs.lib.splitString "\n" (
       pkgs.lib.trim (
         builtins.readFile "${pkgs.runCommand "deps"
@@ -104,7 +135,7 @@ rec {
             export TARGET=$(pwd)
             . ${pkgs.debootstrap}/share/debootstrap/functions
             mkdir lists
-            cp ${list} lists/deb.debian.org_debian_dists_trixie_main_binary-amd64_Packages
+            cp ${pkgs.writeText "list" (json2list packages)} lists/deb.debian.org_debian_dists_trixie_main_binary-amd64_Packages
             resolve_deps ${pkgs.lib.concatStringsSep " " deps} > $out
           ''
         }"
@@ -112,7 +143,7 @@ rec {
     );
   priorityDebs = priority: json: builtins.filter (pkg: pkg.Priority == priority) json;
   debootstrapTar =
-    list: required: base:
+    required: base:
     let
       baseFinal = pkgs.lib.subtractLists required base;
       allFinal = baseFinal ++ required;
@@ -121,7 +152,7 @@ rec {
       mkdir -p out/{debootstrap,var/{lib/apt/lists,cache/apt}}
       cp -r $src out/var/cache/apt/archives
       # TODO multi-list
-      cp ${list} out/var/lib/apt/lists/deb.debian.org_debian_dists_trixie_main_binary-amd64_Packages
+      cp ${pkgs.writeText "list" (json2list allFinal)} out/var/lib/apt/lists/deb.debian.org_debian_dists_trixie_main_binary-amd64_Packages
       cp ${baseFile baseFinal} out/debootstrap/base
       cp ${requiredFile required} out/debootstrap/required
       cp ${debpathsFile allFinal} out/debootstrap/debpaths
@@ -137,7 +168,7 @@ rec {
     '';
   };
   buildChroot =
-    list: required: base:
+    required: base:
     pkgs.vmTools.runInLinuxVM (
       pkgs.runCommand "chroot.tar"
         {
@@ -146,7 +177,7 @@ rec {
           memSize = 1024 * 8;
         }
         ''
-          debootstrap --unpack-tarball ${debootstrapTar list required base} --no-check-sig trixie tmp
+          debootstrap --unpack-tarball ${debootstrapTar required base} --no-check-sig trixie tmp
           rm tmp/dev/{null,zero,full,random,urandom,tty,console,ptmx}
           cat <<EOF >> tmp/root/.bashrc
           export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
