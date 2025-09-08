@@ -1,7 +1,7 @@
 {
   pkgs ? import <nixpkgs> { },
 }:
-let
+rec {
   baseUrl = "https://snapshot.debian.org/archive/debian/20250817T082947Z/";
   releaseHashes = {
     trixie = "sha256-SPJcH1gsULfUPTdIHZmcLlM3WW2UifKuMxROFK/kodk=";
@@ -181,13 +181,4 @@ let
           tar cf $out -C tmp .
         ''
     );
-in
-{
-  listHashesFromRelease = listHashesFromRelease;
-  packageList = packageList;
-  buildChroot = buildChroot;
-  debHashes = debHashes;
-  getDeb = getDeb;
-  getDebs = getDebs;
-  debootstrapTar = debootstrapTar;
 }
