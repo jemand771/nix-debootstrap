@@ -1,8 +1,8 @@
 {
   pkgs ? import <nixpkgs> { },
+  chrootlib ? pkgs.callPackage ./lib { },
 }:
 let
-  chrootlib = pkgs.callPackage ./lib { };
   list = chrootlib.packageList "trixie" "main" "binary-amd64";
   packages = chrootlib.packageJSON list;
 in
