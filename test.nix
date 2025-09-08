@@ -3,6 +3,19 @@
 }:
 let
   chrootlib = pkgs.callPackage ./lib { };
+  list = chrootlib.packageList "trixie" "main" "binary-amd64";
+  packages = chrootlib.packageJSON list;
 in
-chrootlib.buildChroot (chrootlib.debootstrapTar "trixie" "main" "binary-amd64" [ ])
-# chrootlib.buildChroot []
+chrootlib.buildChroot list
+  (builtins.map (name: pkgs.lib.findFirst (p: p.Package == name) null packages) (
+    chrootlib.resolveDeps list (
+      builtins.map (p: p.Package) (chrootlib.priorityDebs "required" packages)
+    )
+  ))
+  (
+    builtins.map (name: pkgs.lib.findFirst (p: p.Package == name) null packages) (
+      chrootlib.resolveDeps list (
+        builtins.map (p: p.Package) (chrootlib.priorityDebs "important" packages)
+      )
+    )
+  )

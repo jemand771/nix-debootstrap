@@ -33,64 +33,57 @@ rec {
         sha256 = builtins.readFile "${listHashesFromRelease dist}/${listPath}";
       };
     } "xz -d < $src > $out";
-
-  debHashes =
-    dist: component: flavor:
-    pkgs.runCommand "deb-hashes-${dist}-${component}-${flavor}"
-      {
-        src = packageList dist component flavor;
-        nativeBuildInputs = [ pkgs.python3 ];
-      }
-      ''
-        python3 ${./debhashes.py} $src $out
-      '';
+  packageJSON =
+    list:
+    pkgs.lib.importJSON (
+      pkgs.runCommand "packages.json"
+        {
+          src = list;
+          nativeBuildInputs = [ pkgs.python3 ];
+        }
+        ''
+          python3 ${./list2json.py} $src $out
+        ''
+    );
   debFileName =
-    dist: component: flavor: name:
-    # pkgs.lib.last (
-    #   pkgs.lib.splitString "/" (builtins.readFile "${debHashes dist component flavor}/${name}/Filename")
-    # );
-    "${name}_${
-      builtins.replaceStrings [ ":" ] [ "%3a" ] (
-        builtins.readFile "${debHashes dist component flavor}/${name}/Version"
-      )
-    }_${builtins.readFile "${debHashes dist component flavor}/${name}/Architecture"}.deb";
+    package:
+    "${package.Package}_${
+      builtins.replaceStrings [ ":" ] [ "%3a" ] (package.Version)
+    }_${package.Architecture}.deb";
   getDeb =
-    dist: component: flavor: name:
-    let
-      hashes = debHashes dist component flavor;
-    in
-    pkgs.runCommand "${dist}-${component}-${flavor}-${name}"
+    package:
+    pkgs.runCommand "${debFileName package}"
       {
         src = pkgs.fetchurl {
-          url = "${baseUrl}${builtins.readFile "${hashes}/${name}/Filename"}";
-          sha256 = builtins.readFile "${hashes}/${name}/SHA256";
+          url = "${baseUrl}${package.Filename}";
+          sha256 = package.SHA256;
         };
       }
       ''
         mkdir $out
         cp $src $out/package.deb
-        echo ${debFileName dist component flavor name} > $out/name.txt
+        echo ${debFileName package} > $out/name.txt
       '';
   getDebs =
-    dist: component: flavor: debs:
+    packages:
     # pkgs.linkFarmFromDrvs "debs" (pkgs.lib.map (getDeb dist component flavor) debs);
-    pkgs.runCommand "debs"
-      { src = pkgs.linkFarmFromDrvs "debs" (pkgs.lib.map (getDeb dist component flavor) debs); }
-      ''
-        mkdir $out
-        for dir in $src/*; do
-          echo $dir
-          cp -L $dir/package.deb $out/$(cat $dir/name.txt)
-        done
-      '';
-  baseFile = debs: pkgs.writeText "base" (pkgs.lib.concatStringsSep " " debs);
-  requiredFile = debs: pkgs.writeText "required" (pkgs.lib.concatStringsSep "\n" debs);
+    pkgs.runCommand "debs" { src = pkgs.linkFarmFromDrvs "debs" (pkgs.lib.map getDeb packages); } ''
+      mkdir $out
+      for dir in $src/*; do
+        echo $dir
+        cp -L $dir/package.deb $out/$(cat $dir/name.txt)
+      done
+    '';
+  baseFile =
+    debs: pkgs.writeText "base" (pkgs.lib.concatStringsSep " " (builtins.map (p: p.Package) debs));
+  requiredFile =
+    debs: pkgs.writeText "required" (pkgs.lib.concatStringsSep "\n" (builtins.map (p: p.Package) debs));
   debpathsFile =
-    dist: component: flavor: debs:
+    debs:
     pkgs.writeText "debpaths" (
       pkgs.lib.concatStringsSep "\n" (
-        (pkgs.lib.map (deb: "${deb} /var/cache/apt/archives/${debFileName dist component flavor deb}") debs)
-        ++ [ "" ]
+        # TODO list should be in here too
+        (pkgs.lib.map (deb: "${deb.Package} /var/cache/apt/archives/${debFileName deb}") debs) ++ [ "" ]
       )
     );
   resolveDeps =
@@ -117,41 +110,21 @@ rec {
         }"
       )
     );
-  priorityDebs =
-    priority: info:
-    pkgs.lib.splitString "\n" (
-      pkgs.lib.trim (
-        builtins.readFile "${pkgs.runCommand "${priority}-packages"
-          {
-            src = info;
-            nativeBuildInputs = [ pkgs.python3 ];
-          }
-          ''
-            python3 ${./priority-filter.py} ${priority} $src $out
-          ''
-        }"
-      )
-    );
+  priorityDebs = priority: json: builtins.filter (pkg: pkg.Priority == priority) json;
   debootstrapTar =
-    dist: component: flavor: debs:
+    list: required: base:
     let
-      hashes = debHashes dist component flavor;
-      list = packageList dist component flavor;
-      requiredDebs = resolveDeps list (debs ++ priorityDebs "required" hashes);
-      baseDebs = pkgs.lib.subtractLists requiredDebs (
-        resolveDeps list (debs ++ priorityDebs "important" hashes)
-      );
-      allDebs = baseDebs ++ requiredDebs;
+      baseFinal = pkgs.lib.subtractLists required base;
+      allFinal = baseFinal ++ required;
     in
-    pkgs.runCommand "debootstrap.tar" { src = getDebs dist component flavor allDebs; } ''
+    pkgs.runCommand "debootstrap.tar" { src = getDebs allFinal; } ''
       mkdir -p out/{debootstrap,var/{lib/apt/lists,cache/apt}}
       cp -r $src out/var/cache/apt/archives
-      cp ${
-        packageList dist component flavor
-      } out/var/lib/apt/lists/deb.debian.org_debian_dists_${dist}_${component}_${flavor}_Packages
-      cp ${baseFile baseDebs} out/debootstrap/base
-      cp ${requiredFile requiredDebs} out/debootstrap/required
-      cp ${debpathsFile dist component flavor allDebs} out/debootstrap/debpaths
+      # TODO multi-list
+      cp ${list} out/var/lib/apt/lists/deb.debian.org_debian_dists_trixie_main_binary-amd64_Packages
+      cp ${baseFile baseFinal} out/debootstrap/base
+      cp ${requiredFile required} out/debootstrap/required
+      cp ${debpathsFile allFinal} out/debootstrap/debpaths
       tar cf $out -C out var debootstrap
     '';
   debootstrap = pkgs.debootstrap;
@@ -164,7 +137,7 @@ rec {
     '';
   };
   buildChroot =
-    debpkgs:
+    list: required: base:
     pkgs.vmTools.runInLinuxVM (
       pkgs.runCommand "chroot.tar"
         {
@@ -173,7 +146,7 @@ rec {
           memSize = 1024 * 8;
         }
         ''
-          debootstrap --unpack-tarball ${debpkgs} --no-check-sig trixie tmp
+          debootstrap --unpack-tarball ${debootstrapTar list required base} --no-check-sig trixie tmp
           rm tmp/dev/{null,zero,full,random,urandom,tty,console,ptmx}
           cat <<EOF >> tmp/root/.bashrc
           export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
