@@ -3,111 +3,13 @@
 }:
 rec {
   baseUrl = "https://snapshot.debian.org/archive/debian/20250817T082947Z/";
-  releaseHashes = {
-    trixie = "sha256-SPJcH1gsULfUPTdIHZmcLlM3WW2UifKuMxROFK/kodk=";
+  release = pkgs.callPackage ./release.nix { inherit baseUrl; };
+  lists = pkgs.callPackage ./lists.nix { };
+  deb = pkgs.callPackage ./deb.nix {
+    inherit (lists) json2list;
+    inherit baseUrl;
   };
-  releaseFile =
-    dist:
-    pkgs.fetchurl {
-      url = "${baseUrl}dists/${dist}/Release";
-      hash = pkgs.lib.getAttr dist releaseHashes;
-    };
-  listHashesFromRelease =
-    dist:
-    pkgs.runCommand "list-hashes-${dist}" { src = releaseFile dist; } ''
-      grep -A99999 -m1 'SHA256:' $src | tail -n+2 | while read line; do
-        hash=$(echo $line | cut -d" " -f1)
-        filename=$out/$(echo $line | cut -d" " -f3)
-        mkdir -p $(dirname $filename)
-        echo -n $hash > $filename
-      done
-    '';
-  packageList =
-    dist: component: flavor:
-    let
-      listPath = "${component}/${flavor}/Packages.xz";
-    in
-    builtins.readFile (
-      builtins.toString (
-        pkgs.runCommand "package-list-${dist}-${listPath}" {
-          src = pkgs.fetchurl {
-            url = "${baseUrl}dists/${dist}/${listPath}";
-            sha256 = builtins.readFile "${listHashesFromRelease dist}/${listPath}";
-          };
-        } "xz -d < $src > $out"
-      )
-    );
-  list2json =
-    list:
-    let
-      unwrappedLines = builtins.map (
-        line: if pkgs.lib.strings.hasPrefix " " line then line else "\n${line}"
-      ) (pkgs.lib.splitString "\n" list);
-      fullFile = pkgs.lib.removeSuffix "\n" (
-        pkgs.lib.removePrefix "\n" (pkgs.lib.concatStringsSep "" unwrappedLines)
-      );
-    in
-    builtins.map (
-      block:
-      builtins.listToAttrs (
-        builtins.map (
-          line:
-          let
-            split = pkgs.lib.splitString ": " line;
-          in
-          {
-            name = builtins.elemAt split 0;
-            value = pkgs.lib.concatStringsSep ": " (builtins.tail split);
-          }
-        ) (pkgs.lib.splitString "\n" block)
-      )
-    ) (pkgs.lib.splitString "\n\n" fullFile);
-  json2list =
-    json:
-    pkgs.lib.concatStringsSep "\n\n" (
-      builtins.map (
-        package:
-        pkgs.lib.concatStringsSep "\n" (
-          # debootstrap assumes `Package:` is the first line (lol)
-          # otherwise dependency resolution is off by one package entry with disasterous consequences
-          pkgs.lib.sortOn (line: if pkgs.lib.hasPrefix "Package:" line then 0 else 1) (
-            pkgs.lib.mapAttrsToList (name: value: "${name}: ${value}") package
-          )
-        )
-      ) json
-    );
-  getDeb =
-    package:
-    pkgs.fetchurl {
-      url = "${baseUrl}${package.Filename}";
-      sha256 = package.SHA256;
-    };
-  getDebs = packages: pkgs.linkFarmFromDrvs "debs" (pkgs.lib.map getDeb packages);
-  resolveDeps =
-    packages: deps:
-    pkgs.lib.splitString "\n" (
-      pkgs.lib.trim (
-        builtins.readFile "${pkgs.runCommand "deps"
-          {
-            ARCH_ALL_SUPPORTED = "0";
-            MIRRORS = "deb.debian.org_debian";
-            ARCH = "amd64";
-            SUITE = "trixie";
-            COMPONENTS = "main";
-            DLDEST = "apt_dest";
-            nativeBuildInputs = [ pkgs.perl ];
-          }
-          ''
-            export TARGET=$(pwd)
-            . ${pkgs.debootstrap}/share/debootstrap/functions
-            mkdir lists
-            cp ${pkgs.writeText "list" (json2list packages)} lists/deb.debian.org_debian_dists_trixie_main_binary-amd64_Packages
-            resolve_deps ${pkgs.lib.concatStringsSep " " deps} > $out
-          ''
-        }"
-      )
-    );
-  priorityDebs = priority: json: builtins.filter (pkg: pkg.Priority == priority) json;
+
   createChroot =
     debs:
     pkgs.vmTools.runInLinuxVM (
@@ -158,5 +60,6 @@ rec {
           tar cf $out -C chroot .
         ''
     );
-  buildChroot = required: base: installPackages (createChroot (getDebs required)) (getDebs base);
+  buildChroot =
+    required: base: installPackages (createChroot (deb.getDebs required)) (deb.getDebs base);
 }
