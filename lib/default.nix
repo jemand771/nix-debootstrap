@@ -76,35 +76,13 @@ rec {
         )
       ) json
     );
-  debFileName =
-    package:
-    "${package.Package}_${
-      builtins.replaceStrings [ ":" ] [ "%3a" ] (package.Version)
-    }_${package.Architecture}.deb";
   getDeb =
     package:
-    pkgs.runCommand "${debFileName package}"
-      {
-        src = pkgs.fetchurl {
-          url = "${baseUrl}${package.Filename}";
-          sha256 = package.SHA256;
-        };
-      }
-      ''
-        mkdir $out
-        cp $src $out/package.deb
-        echo ${debFileName package} > $out/name.txt
-      '';
-  getDebs =
-    packages:
-    # pkgs.linkFarmFromDrvs "debs" (pkgs.lib.map (getDeb dist component flavor) debs);
-    pkgs.runCommand "debs" { src = pkgs.linkFarmFromDrvs "debs" (pkgs.lib.map getDeb packages); } ''
-      mkdir $out
-      for dir in $src/*; do
-        echo $dir
-        cp -L $dir/package.deb $out/$(cat $dir/name.txt)
-      done
-    '';
+    pkgs.fetchurl {
+      url = "${baseUrl}${package.Filename}";
+      sha256 = package.SHA256;
+    };
+  getDebs = packages: pkgs.linkFarmFromDrvs "debs" (pkgs.lib.map getDeb packages);
   resolveDeps =
     packages: deps:
     pkgs.lib.splitString "\n" (
