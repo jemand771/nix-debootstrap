@@ -20,22 +20,18 @@ rec {
         ''
           export PATH=$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
           export DEBIAN_FRONTEND=noninteractive
-          mkdir chroot
+          mkdir -p chroot/pkgs
+          cp ${debs}/* chroot/pkgs/
 
-          for deb in ${debs}/*; do
-            echo extracting $(basename $deb)
+          for deb in chroot/pkgs/*; do
             dpkg-deb --extract $deb chroot
           done
 
-          echo installing base system
-          mkdir chroot/pkgs
-          cp ${debs}/* chroot/pkgs/
           chroot chroot bash -c 'dpkg --install --force-depends /pkgs/*'
           # (pointlessly) run again without --force-depends to make sure everybody is happy
           chroot chroot bash -c 'dpkg --install /pkgs/*'
           rm -rf chroot/pkgs
 
-          echo exporting chroot
           tar cf $out -C chroot .
         ''
     );
