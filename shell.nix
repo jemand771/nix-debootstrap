@@ -4,7 +4,7 @@
 pkgs.mkShellNoCC {
 
   packages = with pkgs; [
-    debootstrap
+    apt
     dpkg
   ];
 }
