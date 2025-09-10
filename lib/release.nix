@@ -19,9 +19,9 @@ rec {
       done
     '';
   packageList =
-    baseUrl: dist: releaseHash: component: flavor:
+    compressor: ext: baseUrl: dist: releaseHash: component: flavor:
     let
-      listPath = "${component}/${flavor}/Packages.xz";
+      listPath = "${component}/${flavor}/Packages.${ext}";
     in
     "# ${baseUrl}\n"
     + builtins.readFile (
@@ -31,7 +31,9 @@ rec {
             url = "${baseUrl}dists/${dist}/${listPath}";
             sha256 = builtins.readFile "${listHashesFromRelease baseUrl dist releaseHash}/${listPath}";
           };
-        } "xz -d < $src > $out"
+        } "${compressor} -d < $src > $out"
       )
     );
+  packageListXz = packageList "xz" "xz";
+  packageListGz = packageList "gzip" "gz";
 }
