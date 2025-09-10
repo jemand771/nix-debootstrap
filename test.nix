@@ -3,7 +3,7 @@
   chrootlib ? pkgs.callPackage ./lib { },
 }:
 let
-  list = chrootlib.release.packageList "trixie" "main" "binary-amd64";
+  list = chrootlib.debian.packageList "trixie" "main" "binary-amd64";
   packages = chrootlib.lists.list2json list;
 in
 chrootlib.buildChroot

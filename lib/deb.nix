@@ -1,13 +1,12 @@
 {
   pkgs,
-  baseUrl,
   json2list,
 }:
 rec {
   getDeb =
     package:
     pkgs.fetchurl {
-      url = "${baseUrl}${package.Filename}";
+      url = "${package._baseUrl}${package.Filename}";
       sha256 = package.SHA256;
     };
   getDebs = packages: pkgs.linkFarmFromDrvs "debs" (pkgs.lib.map getDeb packages);

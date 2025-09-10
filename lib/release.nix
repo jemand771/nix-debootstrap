@@ -1,20 +1,16 @@
 {
   pkgs,
-  baseUrl,
 }:
 rec {
-  releaseHashes = {
-    trixie = "sha256-SPJcH1gsULfUPTdIHZmcLlM3WW2UifKuMxROFK/kodk=";
-  };
   releaseFile =
-    dist:
+    baseUrl: dist: hash:
     pkgs.fetchurl {
       url = "${baseUrl}dists/${dist}/Release";
-      hash = pkgs.lib.getAttr dist releaseHashes;
+      inherit hash;
     };
   listHashesFromRelease =
-    dist:
-    pkgs.runCommand "list-hashes-${dist}" { src = releaseFile dist; } ''
+    baseUrl: dist: releaseHash:
+    pkgs.runCommand "list-hashes-${dist}" { src = releaseFile baseUrl dist releaseHash; } ''
       grep -A99999 -m1 'SHA256:' $src | tail -n+2 | while read line; do
         hash=$(echo $line | cut -d" " -f1)
         filename=$out/$(echo $line | cut -d" " -f3)
@@ -23,16 +19,17 @@ rec {
       done
     '';
   packageList =
-    dist: component: flavor:
+    baseUrl: dist: releaseHash: component: flavor:
     let
       listPath = "${component}/${flavor}/Packages.xz";
     in
-    builtins.readFile (
+    "# ${baseUrl}\n"
+    + builtins.readFile (
       builtins.toString (
         pkgs.runCommand "package-list-${dist}-${listPath}" {
           src = pkgs.fetchurl {
             url = "${baseUrl}dists/${dist}/${listPath}";
-            sha256 = builtins.readFile "${listHashesFromRelease dist}/${listPath}";
+            sha256 = builtins.readFile "${listHashesFromRelease baseUrl dist releaseHash}/${listPath}";
           };
         } "xz -d < $src > $out"
       )

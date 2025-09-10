@@ -2,12 +2,11 @@
   pkgs ? import <nixpkgs> { },
 }:
 rec {
-  baseUrl = "https://snapshot.debian.org/archive/debian/20250817T082947Z/";
-  release = pkgs.callPackage ./release.nix { inherit baseUrl; };
+  release = pkgs.callPackage ./release.nix { };
+  debian = pkgs.callPackage ./debian.nix { inherit release; };
   lists = pkgs.callPackage ./lists.nix { };
   deb = pkgs.callPackage ./deb.nix {
     inherit (lists) json2list;
-    inherit baseUrl;
   };
 
   createChroot =

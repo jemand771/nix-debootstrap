@@ -5,6 +5,7 @@
   list2json =
     list:
     let
+      _baseUrl = pkgs.lib.removePrefix "# " (builtins.head (pkgs.lib.splitString "\n" list));
       unwrappedLines = builtins.map (
         line: if pkgs.lib.strings.hasPrefix " " line then line else "\n${line}"
       ) (pkgs.lib.splitString "\n" list);
@@ -14,7 +15,10 @@
     in
     builtins.map (
       block:
-      builtins.listToAttrs (
+      {
+        inherit _baseUrl;
+      }
+      // builtins.listToAttrs (
         builtins.map (
           line:
           let
@@ -36,7 +40,9 @@
           # debootstrap assumes `Package:` is the first line (lol)
           # otherwise dependency resolution is off by one package entry with disasterous consequences
           pkgs.lib.sortOn (line: if pkgs.lib.hasPrefix "Package:" line then 0 else 1) (
-            pkgs.lib.mapAttrsToList (name: value: "${name}: ${value}") package
+            pkgs.lib.mapAttrsToList (name: value: "${name}: ${value}") (
+              pkgs.lib.filterAttrs (name: _: !pkgs.lib.hasPrefix "_" name) package
+            )
           )
         )
       ) json

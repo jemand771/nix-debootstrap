@@ -4,7 +4,7 @@
   system,
 }:
 let
-  list = self.lib.${system}.release.packageList "trixie" "main" "binary-amd64";
+  list = self.lib.${system}.debian.packageList "trixie" "main" "binary-amd64";
   packages = self.lib.${system}.lists.list2json list;
 in
 self.lib.${system}.buildChroot
