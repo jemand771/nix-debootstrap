@@ -7,7 +7,7 @@ let
   list = self.lib.${system}.release.packageList "trixie" "main" "binary-amd64";
   packages = self.lib.${system}.lists.list2json list;
 in
-pkgs.runCommand "deps"
+pkgs.runCommand "test-deps"
   {
     pass =
       self.lib.${system}.buildChroot
