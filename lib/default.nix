@@ -13,7 +13,7 @@ rec {
   createChroot =
     debs:
     pkgs.vmTools.runInLinuxVM (
-      pkgs.runCommand "chroot.tar"
+      pkgs.runCommand "base-chroot.tar"
         {
           nativeBuildInputs = [ pkgs.dpkg ];
         }
