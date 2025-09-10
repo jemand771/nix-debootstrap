@@ -6,7 +6,7 @@ rec {
   debian = pkgs.callPackage ./debian.nix { inherit release; };
   lists = pkgs.callPackage ./lists.nix { };
   deb = pkgs.callPackage ./deb.nix {
-    inherit (lists) json2list;
+    inherit lists;
   };
 
   createChroot =
@@ -15,6 +15,12 @@ rec {
       pkgs.runCommand "base-chroot.tar"
         {
           nativeBuildInputs = [ pkgs.dpkg ];
+          # TODO that aint right skull emoji
+          archfile = pkgs.writeText "arch" ''
+            amd64
+            aarch64
+            armhf
+          '';
         }
         ''
           export PATH=$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -25,6 +31,7 @@ rec {
           for deb in chroot/pkgs/*; do
             dpkg-deb --extract $deb chroot
           done
+          cp $archfile chroot/var/lib/dpkg/arch
 
           chroot chroot bash -c 'dpkg --install --force-depends /pkgs/*'
           # (pointlessly) run again without --force-depends to make sure everybody is happy
@@ -40,7 +47,8 @@ rec {
       pkgs.runCommand "chroot.tar"
         {
           src = chroot;
-          memSize = 1024 * 8;
+          # TODO make configurable/dynamic, somehow. don't build on a tempfs to begin with, maybe?
+          memSize = 1024 * 16;
         }
         ''
           export PATH=$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin

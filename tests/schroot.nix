@@ -21,19 +21,14 @@ pkgs.nixosTest {
             in
             builtins.toString (
               self.lib.${system}.buildChroot
-                (builtins.map (name: pkgs.lib.findFirst (p: p.Package == name) null packages) (
-                  self.lib.${system}.deb.resolveDeps packages (
-                    builtins.map (p: p.Package) (self.lib.${system}.deb.priorityDebs "required" packages)
-                  )
+                (self.lib.${system}.deb.resolveDeps packages (
+                  self.lib.${system}.deb.priorityDebs "required" packages
                 ))
                 (
-                  builtins.map (name: pkgs.lib.findFirst (p: p.Package == name) null packages) (
-                    self.lib.${system}.deb.resolveDeps packages (
-                      builtins.map (p: p.Package) (self.lib.${system}.deb.priorityDebs "important" packages)
-                    )
+                  self.lib.${system}.deb.resolveDeps packages (
+                    self.lib.${system}.deb.priorityDebs "important" packages
                   )
                 )
-
             );
           source-clone = false;
           aliases = "foo";

@@ -1,7 +1,7 @@
 {
   pkgs,
 }:
-{
+rec {
   list2json =
     list:
     let
@@ -47,4 +47,19 @@
         )
       ) json
     );
+  find =
+    packages: name:
+    # TODO auto-determine current build arch
+    let
+      arch =
+        if pkgs.lib.hasInfix ":" name then pkgs.lib.last (pkgs.lib.splitString ":" name) else "amd64";
+      pkgname =
+        if pkgs.lib.hasInfix ":" name then pkgs.lib.head (pkgs.lib.splitString ":" name) else name;
+    in
+    pkgs.lib.findFirst (
+      p: p.Package == pkgname && (p.Architecture == arch || p.Architecture == "all")
+    ) null packages;
+  findAll = packages: builtins.map (find packages);
+  unfind = p: p.Package;
+  unfindAll = builtins.map unfind;
 }

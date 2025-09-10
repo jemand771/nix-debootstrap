@@ -6,16 +6,6 @@ let
   list = chrootlib.debian.packageList "trixie" "main" "binary-amd64";
   packages = chrootlib.lists.list2json list;
 in
-chrootlib.buildChroot
-  (builtins.map (name: pkgs.lib.findFirst (p: p.Package == name) null packages) (
-    chrootlib.deb.resolveDeps packages (
-      builtins.map (p: p.Package) (chrootlib.deb.priorityDebs "required" packages)
-    )
-  ))
-  (
-    builtins.map (name: pkgs.lib.findFirst (p: p.Package == name) null packages) (
-      chrootlib.deb.resolveDeps packages (
-        builtins.map (p: p.Package) (chrootlib.deb.priorityDebs "important" packages)
-      )
-    )
-  )
+chrootlib.buildChroot (chrootlib.deb.resolveDeps packages (chrootlib.deb.priorityDebs "required" packages)) (
+  chrootlib.deb.resolveDeps packages ((chrootlib.deb.priorityDebs "important" packages))
+)

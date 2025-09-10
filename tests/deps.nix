@@ -11,34 +11,24 @@ pkgs.runCommand "test-deps"
   {
     pass =
       self.lib.${system}.buildChroot
-        (builtins.map (name: pkgs.lib.findFirst (p: p.Package == name) null packages) (
-          self.lib.${system}.deb.resolveDeps packages (
-            builtins.map (p: p.Package) (self.lib.${system}.deb.priorityDebs "required" packages)
-          )
+        (self.lib.${system}.deb.resolveDeps packages (
+          self.lib.${system}.deb.priorityDebs "required" packages
         ))
         (
-          builtins.map (name: pkgs.lib.findFirst (p: p.Package == name) null packages) (
-            self.lib.${system}.deb.resolveDeps packages (
-              builtins.map (p: p.Package) (
-                [ (pkgs.lib.findFirst (p: p.Package == "cowsay") null packages) ]
-                ++ (self.lib.${system}.deb.priorityDebs "important" packages)
-              )
-            )
-          )
+          (self.lib.${system}.deb.resolveDeps packages (
+            (self.lib.${system}.lists.findAll packages [ "cowsay" ])
+            ++ (self.lib.${system}.deb.priorityDebs "important" packages)
+          ))
         );
     # sanity check to make sure it doesn't magically get included in base one day (unlikely)
     fail =
       self.lib.${system}.buildChroot
-        (builtins.map (name: pkgs.lib.findFirst (p: p.Package == name) null packages) (
-          self.lib.${system}.deb.resolveDeps packages (
-            builtins.map (p: p.Package) (self.lib.${system}.deb.priorityDebs "required" packages)
-          )
+        (self.lib.${system}.deb.resolveDeps packages (
+          self.lib.${system}.deb.priorityDebs "required" packages
         ))
         (
-          builtins.map (name: pkgs.lib.findFirst (p: p.Package == name) null packages) (
-            self.lib.${system}.deb.resolveDeps packages (
-              builtins.map (p: p.Package) (self.lib.${system}.deb.priorityDebs "important" packages)
-            )
+          self.lib.${system}.deb.resolveDeps packages (
+            self.lib.${system}.deb.priorityDebs "important" packages
           )
         );
   }

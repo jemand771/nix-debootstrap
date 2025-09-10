@@ -1,6 +1,6 @@
 {
   pkgs,
-  json2list,
+  lists,
 }:
 rec {
   getDeb =
@@ -10,7 +10,7 @@ rec {
       sha256 = package.SHA256;
     };
   getDebs = packages: pkgs.linkFarmFromDrvs "debs" (pkgs.lib.map getDeb packages);
-  resolveDeps =
+  resolveDepsNames =
     packages: deps:
     let
       sources = pkgs.writeText "fake.sources" ''
@@ -19,7 +19,7 @@ rec {
         Suites: d
         Components: e
       '';
-      list = pkgs.writeText "list" (json2list packages);
+      list = pkgs.writeText "list" (lists.json2list packages);
       resolved =
         pkgs.runCommand "deps-resolved"
           {
@@ -42,5 +42,7 @@ rec {
           '';
     in
     pkgs.lib.splitString "\n" (pkgs.lib.trim (builtins.readFile resolved));
+  resolveDeps =
+    packages: deps: lists.findAll packages (resolveDepsNames packages (lists.unfindAll deps));
   priorityDebs = priority: json: builtins.filter (pkg: pkg.Priority == priority) json;
 }
