@@ -13,8 +13,8 @@ pkgs.nixosTest {
       programs.schroot = {
         enable = true;
         settings.mychroot = {
-          type = "file";
-          file =
+          type = "directory";
+          directory =
             let
               list = self.lib.${system}.debian.packageList "trixie" "main" "binary-amd64";
               packages = self.lib.${system}.lists.list2json list;
@@ -30,8 +30,6 @@ pkgs.nixosTest {
                   )
                 )
             );
-          source-clone = false;
-          aliases = "foo";
           users = "root";
         };
       };

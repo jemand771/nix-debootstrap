@@ -12,7 +12,7 @@ rec {
   createChroot =
     debs:
     pkgs.vmTools.runInLinuxVM (
-      pkgs.runCommand "base-chroot.tar"
+      pkgs.runCommand "base-chroot"
         {
           nativeBuildInputs = [ pkgs.dpkg ];
           # TODO that aint right skull emoji
@@ -25,26 +25,25 @@ rec {
         ''
           export PATH=$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
           export DEBIAN_FRONTEND=noninteractive
-          mkdir -p chroot/pkgs
-          cp ${debs}/* chroot/pkgs/
+          mkdir -p out/pkgs
+          cp ${debs}/* out/pkgs/
 
-          for deb in chroot/pkgs/*; do
-            dpkg-deb --extract $deb chroot
+          for deb in out/pkgs/*; do
+            dpkg-deb --extract $deb out
           done
-          cp $archfile chroot/var/lib/dpkg/arch
+          cp $archfile out/var/lib/dpkg/arch
 
-          chroot chroot bash -c 'dpkg --install --force-depends /pkgs/*'
+          chroot out bash -c 'dpkg --install --force-depends /pkgs/*'
           # (pointlessly) run again without --force-depends to make sure everybody is happy
-          chroot chroot bash -c 'dpkg --install /pkgs/*'
-          rm -rf chroot/pkgs
-
-          tar cf $out -C chroot .
+          chroot out bash -c 'dpkg --install /pkgs/*'
+          rm -rf out/pkgs
+          cp -r --no-preserve=ownership out $out
         ''
     );
   installPackages =
     chroot: debs:
     pkgs.vmTools.runInLinuxVM (
-      pkgs.runCommand "chroot.tar"
+      pkgs.runCommand "chroot"
         {
           src = chroot;
           # TODO make configurable/dynamic, somehow. don't build on a tempfs to begin with, maybe?
@@ -52,15 +51,13 @@ rec {
         }
         ''
           export PATH=$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-          mkdir chroot
-          tar xf $src -C chroot
+          cp -r $src out
 
-          mkdir chroot/pkgs
-          cp ${debs}/* chroot/pkgs/
-          chroot chroot bash -c 'apt install -y /pkgs/*'
-          rm -rf chroot/pkgs
-
-          tar cf $out -C chroot .
+          mkdir out/pkgs
+          cp ${debs}/* out/pkgs/
+          chroot out bash -c 'apt install -y /pkgs/*'
+          rm -rf out/pkgs
+          cp -r --no-preserve=ownership out $out
         ''
     );
   buildChroot =

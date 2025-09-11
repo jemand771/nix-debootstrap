@@ -34,8 +34,8 @@ pkgs.runCommand "test-deps"
   }
   ''
     echo "making sure the basic install doesn't contain cowsay"
-    ! tar tf $fail | grep cowsay
+    ! find $fail | grep cowsay
     echo "making sure our custom install contains cowsay"
-    tar tf $pass | grep cowsay > /dev/null
+    find $pass | grep cowsay > /dev/null
     touch $out
   ''
