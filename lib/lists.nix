@@ -5,10 +5,11 @@ rec {
   list2json =
     list:
     let
-      _baseUrl = pkgs.lib.removePrefix "# " (builtins.head (pkgs.lib.splitString "\n" list));
+      split = pkgs.lib.splitString "\n" list;
+      _baseUrl = pkgs.lib.removePrefix "# " (builtins.head split);
       unwrappedLines = builtins.map (
         line: if pkgs.lib.strings.hasPrefix " " line then line else "\n${line}"
-      ) (pkgs.lib.splitString "\n" list);
+      ) (builtins.tail split);
       fullFile = pkgs.lib.removeSuffix "\n" (
         pkgs.lib.removePrefix "\n" (pkgs.lib.concatStringsSep "" unwrappedLines)
       );
@@ -30,7 +31,7 @@ rec {
           }
         ) (pkgs.lib.splitString "\n" block)
       )
-    ) (pkgs.lib.splitString "\n\n" fullFile);
+    ) (builtins.filter (block: builtins.stringLength block > 0) (pkgs.lib.splitString "\n\n" fullFile));
   json2list =
     json:
     pkgs.lib.concatStringsSep "\n\n" (
