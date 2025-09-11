@@ -7,6 +7,7 @@ rec {
   releaseHashes = {
     trixie = "sha256-SPJcH1gsULfUPTdIHZmcLlM3WW2UifKuMxROFK/kodk=";
     bullseye = "sha256-2y1Pv0P816CBJOf7w4fS6OJZnwGFiqfib26daKWDVlc=";
+    bullseye-updates = "sha256-+UZ+OuuoYKaYkjxVXNt7qSLj8HTwTvny485SJgnDbKQ=";
   };
   releaseFile = dist: release.releaseFile baseUrl dist (pkgs.lib.getAttr dist releaseHashes);
   listHashesFromRelease =
