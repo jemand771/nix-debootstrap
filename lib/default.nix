@@ -4,6 +4,7 @@
 rec {
   release = pkgs.callPackage ./release.nix { };
   debian = pkgs.callPackage ./debian.nix { inherit release; };
+  debian-archive = pkgs.callPackage ./debian-archive.nix { inherit release; };
   lists = pkgs.callPackage ./lists.nix { };
   deb = pkgs.callPackage ./deb.nix {
     inherit lists;
