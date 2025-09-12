@@ -49,6 +49,7 @@ rec {
         {
           src = chroot;
           # TODO make configurable/dynamic, somehow. don't build on a tempfs to begin with, maybe?
+          # TODO should be apt install -y, not dpkg -i
           memSize = 1024 * 16;
         }
         ''
@@ -58,7 +59,7 @@ rec {
 
           mkdir chroot/pkgs
           cp ${debs}/* chroot/pkgs/
-          chroot chroot bash -c 'apt install -y /pkgs/*'
+          chroot chroot bash -c 'dpkg --install --force-depends /pkgs/*'
           rm -rf chroot/pkgs
 
           tar cf $out -C chroot .
