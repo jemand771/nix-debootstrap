@@ -50,13 +50,12 @@ rec {
     let
       arch =
         if pkgs.lib.hasInfix ":" name then pkgs.lib.last (pkgs.lib.splitString ":" name) else "amd64";
-      pkgname =
-        if pkgs.lib.hasInfix ":" name then pkgs.lib.head (pkgs.lib.splitString ":" name) else name;
+      pkgname = pkgs.lib.head (pkgs.lib.splitString ":" name);
     in
-    pkgs.lib.findFirst (
-      p: p.Package == pkgname && (p.Architecture == arch || p.Architecture == "all")
-    ) null packages;
+    pkgs.lib.findFirst (p: p.Package == pkgname && p.Architecture == arch) (pkgs.lib.findFirst (
+      p: p.Package == pkgname && p.Architecture == "all"
+    ) null packages) packages;
   findAll = packages: builtins.map (find packages);
-  unfind = p: p.Package;
+  unfind = p: "${p.Package}:${p.Architecture}";
   unfindAll = builtins.map unfind;
 }

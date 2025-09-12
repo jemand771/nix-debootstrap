@@ -12,23 +12,35 @@ pkgs.runCommand "test-deps"
     pass =
       self.lib.${system}.buildChroot
         (self.lib.${system}.deb.resolveDeps packages (
-          self.lib.${system}.deb.priorityDebs "required" packages
+          self.lib.${system}.deb.filter {
+            Priority = "required";
+            Architecture = "amd64";
+          } packages
         ))
         (
           (self.lib.${system}.deb.resolveDeps packages (
             (self.lib.${system}.lists.findAll packages [ "cowsay" ])
-            ++ (self.lib.${system}.deb.priorityDebs "important" packages)
+            ++ (self.lib.${system}.deb.filter {
+              Priority = "important";
+              Architecture = "amd64";
+            } packages)
           ))
         );
     # sanity check to make sure it doesn't magically get included in base one day (unlikely)
     fail =
       self.lib.${system}.buildChroot
         (self.lib.${system}.deb.resolveDeps packages (
-          self.lib.${system}.deb.priorityDebs "required" packages
+          self.lib.${system}.deb.filter {
+            Priority = "required";
+            Architecture = "amd64";
+          } packages
         ))
         (
           self.lib.${system}.deb.resolveDeps packages (
-            self.lib.${system}.deb.priorityDebs "important" packages
+            self.lib.${system}.deb.filter {
+              Priority = "important";
+              Architecture = "amd64";
+            } packages
           )
         );
   }

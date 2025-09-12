@@ -44,5 +44,8 @@ rec {
     pkgs.lib.splitString "\n" (pkgs.lib.trim (builtins.readFile resolved));
   resolveDeps =
     packages: deps: lists.findAll packages (resolveDepsNames packages (lists.unfindAll deps));
-  priorityDebs = priority: json: builtins.filter (pkg: pkg.Priority == priority) json;
+  filter =
+    attrs:
+    # Architecture=all is always fair game
+    builtins.filter (pkg: pkg // attrs == pkg || pkg // attrs // { Architecture = "all"; } == pkg);
 }

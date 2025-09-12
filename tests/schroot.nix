@@ -22,11 +22,17 @@ pkgs.nixosTest {
             builtins.toString (
               self.lib.${system}.buildChroot
                 (self.lib.${system}.deb.resolveDeps packages (
-                  self.lib.${system}.deb.priorityDebs "required" packages
+                  self.lib.${system}.deb.filter {
+                    Priority = "required";
+                    Architecture = "amd64";
+                  } packages
                 ))
                 (
                   self.lib.${system}.deb.resolveDeps packages (
-                    self.lib.${system}.deb.priorityDebs "important" packages
+                    self.lib.${system}.deb.filter {
+                      Priority = "important";
+                      Architecture = "amd64";
+                    } packages
                   )
                 )
             );
