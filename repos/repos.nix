@@ -38,4 +38,25 @@
       }
     ];
   };
+  debian-archive = {
+    baseUrl = "https://archive.debian.org/debian/";
+    distReleaseHashes = {
+      bullseye-backports = "sha256-x0tlQ4j0tU5SaBIqEU9L68qx8pbLnvjY3wKsxrJoF0Q=";
+    };
+    cartesianMaps = [
+      {
+        dist = [
+          "bullseye-backports"
+        ];
+        component = [
+          "main"
+          "contrib"
+          "non-free"
+        ];
+        flavor = [
+          "binary-amd64"
+        ];
+      }
+    ];
+  };
 }
