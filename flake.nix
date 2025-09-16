@@ -19,7 +19,7 @@
       in
       rec {
         lib = pkgs.callPackage ./lib { };
-        debian = pkgs.callPackage ./debian { inherit (lib) debian lists; };
+        repos = pkgs.callPackage ./repos { inherit (lib) debian lists; };
         formatter = pkgs.nixfmt-tree;
         checks = pkgs.lib.mapAttrs' (name: _: {
           name = pkgs.lib.removeSuffix ".nix" name;
