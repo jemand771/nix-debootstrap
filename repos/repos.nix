@@ -1,3 +1,21 @@
+let
+  component = [
+    "main"
+    "contrib"
+    "non-free"
+    "non-free-firmware"
+  ];
+  componentOld = [
+    "main"
+    "contrib"
+    "non-free"
+  ];
+  flavor = [
+    "binary-amd64"
+    "binary-arm64"
+    "binary-armhf"
+  ];
+in
 {
   debian = {
     baseUrl = "https://snapshot.debian.org/archive/debian/20250817T082947Z/";
@@ -13,29 +31,15 @@
           "bookworm"
           "trixie"
         ];
-        component = [
-          "main"
-          "contrib"
-          "non-free"
-          "non-free-firmware"
-        ];
-        flavor = [
-          "binary-amd64"
-          "binary-armhf"
-        ];
+        inherit component flavor;
       }
       {
         dist = [
           "bullseye"
+          "bullseye-updates"
         ];
-        component = [
-          "main"
-          "contrib"
-          "non-free"
-        ];
-        flavor = [
-          "binary-amd64"
-        ];
+        component = componentOld;
+        inherit flavor;
       }
     ];
   };
@@ -49,14 +53,8 @@
         dist = [
           "bullseye-backports"
         ];
-        component = [
-          "main"
-          "contrib"
-          "non-free"
-        ];
-        flavor = [
-          "binary-amd64"
-        ];
+        component = componentOld;
+        inherit flavor;
       }
     ];
   };
