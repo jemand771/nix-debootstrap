@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 
 dir=$(dirname "$0")
 out=$(nix-build --no-out-link "$dir/update.nix")
