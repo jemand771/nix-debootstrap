@@ -5,7 +5,11 @@
 }:
 let
   mkRepoPackages =
-    packageListFun: cartesianMaps:
+    {
+      baseUrl,
+      distReleaseHashes,
+      cartesianMaps,
+    }:
     pkgs.linkFarmFromDrvs "packages" (
       builtins.map (
         {
@@ -15,42 +19,17 @@ let
         }:
         pkgs.runCommand "${dist}_${component}_${flavor}.json" {
           src = pkgs.writeText "${dist}_${component}_${flavor}_raw.json" (
-            builtins.toJSON (chrootlib.lists.list2json (packageListFun dist component flavor))
+            builtins.toJSON (
+              chrootlib.lists.list2json (
+                chrootlib.release.packageListXz baseUrl dist (builtins.getAttr dist distReleaseHashes) component
+                  flavor
+              )
+            )
           );
           nativeBuildInputs = [ pkgs.jq ];
         } "jq < $src > $out"
       ) (builtins.concatMap pkgs.lib.cartesianProduct cartesianMaps)
     );
+  repos = import ./repos.nix;
 in
-pkgs.linkFarm "repos" {
-  debian = mkRepoPackages chrootlib.debian.packageList [
-    {
-      dist = [
-        "bookworm"
-        "trixie"
-      ];
-      component = [
-        "main"
-        "contrib"
-        "non-free"
-        "non-free-firmware"
-      ];
-      flavor = [
-        "binary-amd64"
-      ];
-    }
-    {
-      dist = [
-        "bullseye"
-      ];
-      component = [
-        "main"
-        "contrib"
-        "non-free"
-      ];
-      flavor = [
-        "binary-amd64"
-      ];
-    }
-  ];
-}
+pkgs.linkFarm "repos" (builtins.mapAttrs (_: mkRepoPackages) repos)
