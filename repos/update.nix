@@ -1,6 +1,7 @@
 {
   pkgs ? import <nixpkgs> { },
   chrootlib ? pkgs.callPackage ../lib { },
+  repos ? import ./repos.nix,
   ...
 }:
 let
@@ -9,7 +10,11 @@ let
       baseUrl,
       distReleaseHashes,
       cartesianMaps,
+      useGzip ? false,
     }:
+    let
+      packageList = if useGzip then chrootlib.release.packageListGz else chrootlib.release.packageListXz;
+    in
     pkgs.linkFarmFromDrvs "packages" (
       builtins.map (
         {
@@ -21,8 +26,7 @@ let
           src = pkgs.writeText "${dist}_${component}_${flavor}_raw.json" (
             builtins.toJSON (
               chrootlib.lists.list2json (
-                chrootlib.release.packageListXz baseUrl dist (builtins.getAttr dist distReleaseHashes) component
-                  flavor
+                packageList baseUrl dist (builtins.getAttr dist distReleaseHashes) component flavor
               )
             )
           );
@@ -30,6 +34,5 @@ let
         } "jq < $src > $out"
       ) (builtins.concatMap pkgs.lib.cartesianProduct cartesianMaps)
     );
-  repos = import ./repos.nix;
 in
 pkgs.linkFarm "repos" (builtins.mapAttrs (_: mkRepoPackages) repos)
