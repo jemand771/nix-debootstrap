@@ -21,6 +21,7 @@
         ];
         flavor = [
           "binary-amd64"
+          "binary-armhf"
         ];
       }
       {
