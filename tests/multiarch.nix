@@ -4,13 +4,14 @@
   system,
 }:
 let
-  packages =
-    self.lib.${system}.lists.list2json (
-      self.lib.${system}.debian.packageList "trixie" "main" "binary-amd64"
-    )
-    ++ self.lib.${system}.lists.list2json (
-      self.lib.${system}.debian.packageList "trixie" "main" "binary-armhf"
-    );
+  packages = self.repos.${system}.debian.packagesFor {
+    dist = "trixie";
+    component = "main";
+    flavor = [
+      "binary-amd64"
+      "binary-armhf"
+    ];
+  };
 in
 pkgs.runCommand "test-multiarch"
   {

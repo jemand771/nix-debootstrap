@@ -1,10 +1,14 @@
 {
   pkgs ? import <nixpkgs> { },
   chrootlib ? pkgs.callPackage ./lib { },
+  repos ? pkgs.callPackage ./repos { },
 }:
 let
-  list = chrootlib.debian.packageList "trixie" "main" "binary-amd64";
-  packages = chrootlib.lists.list2json list;
+  packages = repos.debian.packagesFor {
+    dist = "trixie";
+    component = "main";
+    flavor = "binary-amd64";
+  };
 in
 chrootlib.buildChroot
   (chrootlib.deb.resolveDeps packages (

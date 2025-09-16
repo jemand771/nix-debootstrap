@@ -16,8 +16,11 @@ pkgs.nixosTest {
           type = "file";
           file =
             let
-              list = self.lib.${system}.debian.packageList "trixie" "main" "binary-amd64";
-              packages = self.lib.${system}.lists.list2json list;
+              packages = self.repos.${system}.debian.packagesFor {
+                dist = "trixie";
+                component = "main";
+                flavor = "binary-amd64";
+              };
             in
             builtins.toString (
               self.lib.${system}.buildChroot
