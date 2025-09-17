@@ -20,4 +20,5 @@ rec {
   packagesForMultiMulti = repo: cfg: builtins.concatMap (packagesForSingleMulti repo) (forceList cfg);
   packagesFor = packagesForMultiMulti;
   debian.packagesFor = packagesFor "debian";
+  debian-archive.packagesFor = packagesFor "debian-archive";
 }
